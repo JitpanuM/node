@@ -57,6 +57,8 @@ build:source:
   needs: ["prepare:docker"]
   image: ${DOCKER_IMAGE_DEV}:${DOCKER_TAG}
   script:
+    # Check if the configuration file exists and source it if it does
+    - if [ -f build_options.env ]; then source build_options.env; fi
     - cmake -S . -B build ${CMAKE_OPTS} ${CMAKE_EXTRA_OPTS}
     - cmake --build build ${CMAKE_BUILD_OPTS}
   artifacts:
@@ -174,6 +176,51 @@ pkg:docker:
       --file ${DOCKER_FILE}
       --tag ${DOCKER_IMAGE}:${DOCKER_TAG}-${ARCH} .
     - docker push ${DOCKER_IMAGE}:${DOCKER_TAG}-${ARCH}
+  tags:
+    - $TAG
+  variables:
+    TARGET: app
+  parallel:
+    matrix:
+      - DISTRO: debian
+        PLATFORM: linux/amd64
+        ARCH: x86_64
+        TRIPLET: x86_64-linux-gnu
+        TAG: docker
+      - DISTRO: debian
+        PLATFORM: linux/arm64/v8
+        ARCH: arm64
+        TRIPLET: aarch64-linux-gnu
+        TAG: PI5
+      # - DISTRO: debian
+      #   PLATFORM: linux/arm/v7
+      #   ARCH: armhf
+      #   TRIPLET: arm-linux-gnueabihf
+      #   DOCKER_FILE: packaging/docker/Dockerfile.debian-multiarch
+      # - DISTRO: debian
+      #   PLATFORM: linux/arm64/v8
+      #   ARCH: arm64
+      #   TRIPLET: aarch64-linux-gnu
+      #   DOCKER_FILE: packaging/docker/Dockerfile.debian-multiarch
+
+  needs: []
+
+# Minimal build job
+pkg:docker:minimal:
+  stage: packaging
+  before_script:
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+  script:
+    - docker build ${DOCKER_OPTS}
+      --pull
+      --target ${TARGET}
+      --build-arg ARCH=${ARCH}
+      --build-arg TRIPLET=${TRIPLET}
+      --build-arg CMAKE_OPTS="${CMAKE_OPTS} ${CMAKE_EXTRA_OPTS} -DMINIMAL_BUILD=ON"
+      --platform ${PLATFORM}
+      --file ${DOCKER_FILE}
+      --tag ${DOCKER_IMAGE}:${DOCKER_TAG}-${ARCH}-minimal .
+    - docker push ${DOCKER_IMAGE}:${DOCKER_TAG}-${ARCH}-minimal
   tags:
     - $TAG
   variables:
