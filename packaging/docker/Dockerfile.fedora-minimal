@@ -26,8 +26,14 @@ RUN dnf -y install \
 	fmt-devel \
 	libwebsockets-devel
 
+# For WebSocket / API access
+EXPOSE 80
+EXPOSE 443
+
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
+
+WORKDIR /villas
 
 FROM dev AS builder
 
@@ -37,21 +43,18 @@ COPY . /villas/
 
 RUN rm -rf /villas/build && mkdir /villas/build
 WORKDIR /villas/build
-
 RUN cmake ${CMAKE_OPTS} -DCPACK_GENERATOR=RPM .. && \
 	make -j$(nproc) package
 
-FROM ${DISTRO}:${FEDORA_VERSION} as app
+# FROM ${DISTRO}:${FEDORA_VERSION} as app
 
-COPY --from=builder /villas/build/*.rpm /tmp/
-RUN dnf -y install /tmp/*.rpm
+# COPY --from=builder /villas/build/*.rpm /tmp/
+# RUN dnf -y install /tmp/*.rpm
 
-# Test if it runs
-RUN villas node -h 2&>1 > /dev/null
+# # Test if it runs
+# RUN villas node -h 2&>1 > /dev/null
 
-# For WebSocket / API access
-EXPOSE 80
-EXPOSE 443
+WORKDIR /villas
 
 ENTRYPOINT ["villas"]
 
